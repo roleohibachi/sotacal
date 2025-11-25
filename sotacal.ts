@@ -140,7 +140,7 @@ async function buildICS(alerts: SotaAlert[]): Promise<string> {
         `Last updated ${ago} by ${alert.posterCallsign || "Unknown"}`
       );
 
-      lines.push(`DESCRIPTION:${escapeICS(descParts.join("\\n"))}`);
+      lines.push(`DESCRIPTION:${escapeICS(descParts.join("\r\n"))}`);
       lines.push("END:VEVENT");
     } catch (err) {
       // Skip malformed alert
