@@ -3,8 +3,5 @@
   "name": "sotacal",
   "main": "sotacal.ts",
   "compatibility_date": "2025-11-25",
-  // Optional assets directory example (not required for current worker logic)
-  "assets": {
-    "directory": "./dist"
-  }
+  // No static asset directory needed for this worker
 }
