@@ -133,6 +133,7 @@ async function buildICS(alerts: SotaAlert[]): Promise<string> {
       if (alert.comments) {
         descParts.push(`Comments: ${alert.comments}`);
       }
+      descParts.push(`https://sotl.as/summits/${alert.associationCode}/${alert.summitCode}`);
       if( alert.summitDetails) {
         descParts.push(`Details: ${alert.summitDetails}`);
       }
