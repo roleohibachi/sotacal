@@ -20,28 +20,27 @@ interface SotaAlert {
   epoch: string;
 }
 
-// Augment CacheStorage for Cloudflare Workers cache shorthand
-declare global {
-  interface CacheStorage {
-    readonly default: Cache;
-  }
-}
-
-// Minimal ExecutionContext placeholder (Cloudflare provides richer type in workers-types)
-interface ExecutionContext {
+// Minimal FetchEvent interface for worker environments (Cloudflare Workers)
+interface FetchEvent extends Event {
+  readonly request: Request;
+  respondWith(response: Promise<Response> | Response): void;
   waitUntil(promise: Promise<unknown>): void;
-  passThroughOnException?(): void;
 }
 
-export default {
-  async fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext): Promise<Response> {
-    return handleRequest(request, ctx);
-  }
-};
+// Augment CacheStorage to include Cloudflare Workers' caches.default
+interface CacheStorage {
+  default: Cache;
+}
 
-async function handleRequest(request: Request, ctx: ExecutionContext): Promise<Response> {
+addEventListener("fetch", (event) => {
+  (event as FetchEvent).respondWith(handleRequest(event as FetchEvent));
+});
+
+async function handleRequest(event: FetchEvent): Promise<Response> {
+  const request = event.request;
   const url = new URL(request.url);
   const format = url.searchParams.get("format");
+  const filter = url.searchParams.get("filter");
 
   // Use Cloudflare cache
   const cache = caches.default;
@@ -61,12 +60,27 @@ async function handleRequest(request: Request, ctx: ExecutionContext): Promise<R
     const cacheResp = new Response(JSON.stringify(alerts), {
       headers: { "Cache-Control": "public, max-age=300" },
     });
-    ctx.waitUntil(cache.put(cacheKey, cacheResp.clone()));
+    event.waitUntil(cache.put(cacheKey, cacheResp.clone()));
   }
 
   if (format === "json") {
     return jsonResponse(alerts);
   }
+
+   if (filter) {
+     const regex = new RegExp(filter, "i");
+     alerts = alerts.filter(alert =>
+       (alert.activatingCallsign && regex.test(alert.activatingCallsign)) ||
+       (alert.activatorName && regex.test(alert.activatorName)) ||
+       regex.test(alert.summitCode) ||
+       regex.test(alert.associationCode) ||
+       regex.test(alert.associationCode + "/" + alert.summitCode) ||
+       (alert.summitDetails && regex.test(alert.summitDetails)) ||
+       (alert.frequency && regex.test(alert.frequency)) ||
+       (alert.posterCallsign && regex.test(alert.posterCallsign)) ||
+       (alert.comments && regex.test(alert.comments))
+     );
+   }
 
   const ics = await buildICS(alerts);
   return new Response(ics, {
