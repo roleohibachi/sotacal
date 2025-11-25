@@ -8,13 +8,13 @@ interface SotaAlert {
   id: number;
   userID: number;
   timeStamp: string;         // ISO last modified timestamp
-  dateActivated: string;     // ISO date string (UTC Z)
-  associationCode: string;
-  summitCode: string;
-  summitDetails: string;
+  dateActivated?: string;     // ISO date string (UTC Z)
+  associationCode?: string;
+  summitCode?: string;
+  summitDetails?: string;
   frequency?: string;
   comments?: string;
-  activatingCallsign: string;
+  activatingCallsign?: string;
   activatorName?: string;
   posterCallsign?: string;
   epoch: string;
@@ -72,9 +72,9 @@ async function handleRequest(event: FetchEvent): Promise<Response> {
      alerts = alerts.filter(alert =>
        (alert.activatingCallsign && regex.test(alert.activatingCallsign)) ||
        (alert.activatorName && regex.test(alert.activatorName)) ||
-       regex.test(alert.summitCode) ||
-       regex.test(alert.associationCode) ||
-       regex.test(alert.associationCode + "/" + alert.summitCode) ||
+       (alert.summitCode && regex.test(alert.summitCode)) ||
+       (alert.associationCode && regex.test(alert.associationCode)) ||
+       (alert.associationCode && alert.summitCode && regex.test(alert.associationCode + "/" + alert.summitCode)) ||
        (alert.summitDetails && regex.test(alert.summitDetails)) ||
        (alert.frequency && regex.test(alert.frequency)) ||
        (alert.posterCallsign && regex.test(alert.posterCallsign)) ||
@@ -111,8 +111,8 @@ async function buildICS(alerts: SotaAlert[]): Promise<string> {
     try {
       lines.push("BEGIN:VEVENT");
       const now = new Date();
-      const summitTime = parseISO(alert.dateActivated);
-      const timeStamp = parseISO(alert.timeStamp);
+      const summitTime = parseISO(alert.dateActivated || "");
+      const timeStamp = parseISO(alert.timeStamp || "");
 
       const title =
         `${alert.activatingCallsign} on ${alert.associationCode}/${alert.summitCode}`;
@@ -132,6 +132,9 @@ async function buildICS(alerts: SotaAlert[]): Promise<string> {
       descParts.push(`Freqs: ${alert.frequency || "Unknown"}`);
       if (alert.comments) {
         descParts.push(`Comments: ${alert.comments}`);
+      }
+      if( alert.summitDetails) {
+        descParts.push(`Details: ${alert.summitDetails}`);
       }
       descParts.push(
         `Last updated ${ago} by ${alert.posterCallsign || "Unknown"}`
