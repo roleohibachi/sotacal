@@ -20,24 +20,26 @@ interface SotaAlert {
   epoch: string;
 }
 
-// Minimal FetchEvent interface for worker environments (Cloudflare Workers)
-interface FetchEvent extends Event {
-  readonly request: Request;
-  respondWith(response: Promise<Response> | Response): void;
+// Augment CacheStorage for Cloudflare Workers cache shorthand
+declare global {
+  interface CacheStorage {
+    readonly default: Cache;
+  }
+}
+
+// Minimal ExecutionContext placeholder (Cloudflare provides richer type in workers-types)
+interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
+  passThroughOnException?(): void;
 }
 
-// Augment CacheStorage to include Cloudflare Workers' caches.default
-interface CacheStorage {
-  default: Cache;
-}
+export default {
+  async fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext): Promise<Response> {
+    return handleRequest(request, ctx);
+  }
+};
 
-addEventListener("fetch", (event) => {
-  (event as FetchEvent).respondWith(handleRequest(event as FetchEvent));
-});
-
-async function handleRequest(event: FetchEvent): Promise<Response> {
-  const request = event.request;
+async function handleRequest(request: Request, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const format = url.searchParams.get("format");
 
@@ -59,7 +61,7 @@ async function handleRequest(event: FetchEvent): Promise<Response> {
     const cacheResp = new Response(JSON.stringify(alerts), {
       headers: { "Cache-Control": "public, max-age=300" },
     });
-    event.waitUntil(cache.put(cacheKey, cacheResp.clone()));
+    ctx.waitUntil(cache.put(cacheKey, cacheResp.clone()));
   }
 
   if (format === "json") {
